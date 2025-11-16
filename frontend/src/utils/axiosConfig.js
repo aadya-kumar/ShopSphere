@@ -2,13 +2,17 @@
 import axios from 'axios';
 import { getToken } from './auth';
 
+// Detect backend API URL from environment
+// (Vercel will inject REACT_APP_API_URL during build)
+const API_BASE_URL = process.env.REACT_APP_API_URL || 'http://localhost:5001';
+
 // Create axios instance
 const api = axios.create({
-  baseURL: '/api',
-  withCredentials: true // Important for cookie-based and server-side sessions
+  baseURL: API_BASE_URL,
+  withCredentials: true // needed only if you use cookies (sessions/JWT-in-cookie)
 });
 
-// Add token to requests if available
+// Add token to all outgoing requests
 api.interceptors.request.use(
   (config) => {
     const token = getToken();
@@ -17,17 +21,14 @@ api.interceptors.request.use(
     }
     return config;
   },
-  (error) => {
-    return Promise.reject(error);
-  }
+  (error) => Promise.reject(error)
 );
 
-// Handle 401 errors (unauthorized)
+// Auto-logout on 401 Unauthorized
 api.interceptors.response.use(
   (response) => response,
   (error) => {
     if (error.response?.status === 401) {
-      // Token expired or invalid
       localStorage.removeItem('shop_sphere_token');
       localStorage.removeItem('shop_sphere_user');
       window.location.href = '/login';
@@ -37,4 +38,3 @@ api.interceptors.response.use(
 );
 
 export default api;
-
