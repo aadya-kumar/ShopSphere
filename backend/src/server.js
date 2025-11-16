@@ -32,8 +32,33 @@ app.use(express.json({ limit: '10kb' }));
 app.use(cookieParser(process.env.COOKIE_SECRET || 'your-cookie-secret-change-in-production'));
 
 // Enable CORS with credentials for cookies
+// Allow multiple origins for production (Vercel) and development
+const allowedOrigins = process.env.FRONTEND_URL 
+  ? process.env.FRONTEND_URL.split(',').map(url => url.trim().replace(/\/$/, ''))
+  : ['http://localhost:3000'];
+
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:3000',
+  origin: function (origin, callback) {
+    // Allow requests with no origin (like mobile apps or curl requests)
+    if (!origin) return callback(null, true);
+    
+    // Check if origin is in allowed list
+    const isExactMatch = allowedOrigins.some(allowed => origin === allowed);
+    const isVercelDomain = origin.includes('.vercel.app');
+    
+    if (isExactMatch || isVercelDomain) {
+      callback(null, true);
+    } else {
+      // In development, be more permissive
+      if (process.env.NODE_ENV !== 'production') {
+        console.log(`⚠️  CORS: Allowing origin ${origin} (development mode)`);
+        callback(null, true);
+      } else {
+        console.log(`❌ CORS: Blocked origin ${origin}. Allowed origins:`, allowedOrigins);
+        callback(new Error('Not allowed by CORS'));
+      }
+    }
+  },
   credentials: true // Allow cookies to be sent
 }));
 
