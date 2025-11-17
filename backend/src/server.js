@@ -42,19 +42,26 @@ app.use(cors({
     // Allow requests with no origin (like mobile apps or curl requests)
     if (!origin) return callback(null, true);
     
-    // Check if origin is in allowed list
-    const isExactMatch = allowedOrigins.some(allowed => origin === allowed);
-    const isVercelDomain = origin.includes('.vercel.app');
+    // Normalize origin by removing trailing slashes (origins should never have them, but be safe)
+    const normalizedOrigin = origin.replace(/\/+$/, '');
+    
+    // Check if origin is in allowed list (normalize allowed origins too)
+    const isExactMatch = allowedOrigins.some(allowed => {
+      const normalizedAllowed = allowed.replace(/\/+$/, '');
+      return normalizedOrigin === normalizedAllowed;
+    });
+    const isVercelDomain = normalizedOrigin.includes('.vercel.app');
     
     if (isExactMatch || isVercelDomain) {
-      callback(null, true);
+      // Return the normalized origin (without trailing slash) to ensure CORS header matches
+      callback(null, normalizedOrigin);
     } else {
       // In development, be more permissive
       if (process.env.NODE_ENV !== 'production') {
-        console.log(`⚠️  CORS: Allowing origin ${origin} (development mode)`);
-        callback(null, true);
+        console.log(`⚠️  CORS: Allowing origin ${normalizedOrigin} (development mode)`);
+        callback(null, normalizedOrigin);
       } else {
-        console.log(`❌ CORS: Blocked origin ${origin}. Allowed origins:`, allowedOrigins);
+        console.log(`❌ CORS: Blocked origin ${normalizedOrigin}. Allowed origins:`, allowedOrigins);
         callback(new Error('Not allowed by CORS'));
       }
     }
